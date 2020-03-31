@@ -1,0 +1,254 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  pdf_document:
+    latex_engine: xelatex
+  html_notebook: default
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+
+# This chunk shows/hides the code in your final report. When echo = TRUE, the code
+# is shown in the report. When echo = FALSE, the code is hidden from the final report.
+# We would like to see your code, so please leave the setting as is during the course.
+# This chunk will not show up in your reports, so you can safely ignore its existence.
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+The following is your first chunk to start with. Remember, you can add chunks using the menu
+above (Insert -> R) or using the keyboard shortcut Ctrl+Alt+I. A good practice is to use
+different code chunks to answer different questions. You can delete this comment if you like.
+
+Other useful keyboard shortcuts include Alt- for the assignment operator, and Ctrl+Shift+M
+for the pipe operator. You can delete these reminders if you don't want them in your report.
+
+```{r}
+#setwd("C:/") #Don't forget to set your working directory before you start!
+
+library("tidyverse")
+library("tidymodels")
+library("plotly")
+library("skimr")
+```
+
+```{r}
+
+dfbOrg <-
+  read_csv("assignment2BikeShare.csv")
+
+dfbOrg
+```
+```{r}
+skim(dfbOrg)
+summary(dfbOrg)
+```
+#Data preparation
+#Create the additional variables:
+#Create the COUNT variable and add it to the data frame.
+#Extract MONTH from the DATE variable and add it to the data frame. This time, do NOT use lubridate. Use the base months() function instead.
+
+```{r}
+
+dfbOrg <- dfbOrg %>%
+  mutate(COUNT = CASUAL + REGISTERED)
+dfbOrg
+
+dfbOrg$MONTH <- months(dfbOrg$DATE)
+
+dfbOrg
+```
+#Scale the data (and save it as dfbStd ): Start by standardizing the four variables, TEMP, ATEMP, HUMIDITY, WINDSPEED. If you don’t remember what it means to standardize a variable, see the link. Surely, you don’t need to do this manually!
+
+```{r}
+dfbStd <- dfbOrg %>% mutate_at(c("TEMP" , "ATEMP", "HUMIDITY", "WINDSPEED"), ~scale(.) %>% as.vector()) 
+dfbStd
+
+
+```
+
+#Basic regression in R: In dfbStd, run a regression model fitAll using COUNT as the DV, and all the variables as independent variables. [ Don’t forget to use summary(fitAll) ]
+#Does this appear to be a good model? Why or why not?
+#According to your model, what is the effect of humidity on the total bike count in a formal interpretation? Does this finding align with your answer to Part (a)?
+```{r}
+fitAll <- lm(formula = COUNT ~ ., data = dfbStd)
+summary(fitAll)
+
+```
+#3.Working with data and exploratory analysis:
+#Add a new variable and call it BADWEATHER, which is “YES” if there is light or heavy rain or snow (if WEATHERSIT is 3 or 4), and “NO” otherwise (if WEATHERSIT is 1 or 2). You know what functions to use at this step.
+
+```{r}
+dfbOrg <- dfbOrg %>% mutate(BADWEATHER = ifelse(WEATHERSIT == 3 | WEATHERSIT == 4, "YES", "NO"))
+dfbOrg
+```
+#Present a scatterplot of COUNT (y-axis) and ATEMP (x-axis). Use different colors or symbols to distinguish “bad weather” days. Briefly describe what you observe.
+```{r}
+plot <- ggplot(data = dfbOrg, aes(x = ATEMP, y = COUNT, color= BADWEATHER)) + geom_point()
+ggplotly(plot)
+plot
+```
+#Make two more scatterplots (and continue using the differentiated coloring for BADWEATHER) by keeping ATEMP on the x-axis and changing the variable on the y-axis: One plot for CASUAL and another for REGISTERED.
+#How is temperature associated with casual usage? Is that different from how it is associated with registered usage?
+#How is bad weather associated with casual usage? Is that different from how it is associated with registered usage?
+#Do your answers in (i) and (ii) make logical sense? Why or why not?
+#Keep ATEMP in the x-axis, but change the y-axis to COUNT. Remove the color variable and add a geom_smooth() without any parameters. How does the overall relationship between temperature and bike usage look? Does this remind you of Lab 2? Why do you think the effects are similar?
+
+
+
+```{r}
+plot1 <- ggplot(data = dfbOrg, aes(x = ATEMP, y = CASUAL, color= BADWEATHER)) + geom_point()
+ggplotly(plot1)
+plot1
+```
+
+```{r}
+plot3 <- ggplot(data = dfbOrg, aes(x = ATEMP, y = REGISTERED, color= BADWEATHER)) + geom_point()
+ggplotly(plot3)
+plot3
+```
+#Keep ATEMP in the x-axis, but change the y-axis to COUNT. Remove the color variable and add a geom_smooth() without any parameters. How does the overall relationship between temperature and bike usage look? Does this remind you of Lab 2? Why do you think the effects are similar?
+
+```{r}
+plot4 <- ggplot(data = dfbOrg, aes(x = ATEMP, y = COUNT)) + geom_point() + geom_smooth()
+ggplotly(plot4)
+plot4
+```
+#4. More linear regression: Using dfbOrg, run another regression for COUNT using the variables MONTH, WEEKDAY, BADWEATHER, TEMP, ATEMP, and HUMIDITY.
+#What is the resulting adjusted R2? What does it mean?
+```{r}
+dfbReg <- lm(formula = COUNT ~ MONTH + WEEKDAY + BADWEATHER + TEMP + ATEMP + HUMIDITY, data = dfbOrg)
+summary(dfbReg)
+```
+#5. Regression diagnostics: Run the regression diagnostics for the model developed in Q4. Discuss whether the model complies with the assumptions of multiple linear regression. If you think you can mitigate a violation, take action, and check the diagnostics again. Hint: The Q-Q plot and the other diagnostics from the plot() function look fine to me!
+
+```{r}
+plot(dfbReg)
+```
+```{r}
+#install.packages("car")
+#library(car)
+#cor(dfbOrg[,c(5,6,7)])
+#vif(dfbReg)
+```
+
+# To mitigate the risk I removed TEMP 
+
+```{r}
+dfbReg1 <- lm(formula = COUNT ~ MONTH + WEEKDAY + BADWEATHER + ATEMP + HUMIDITY, data = dfbOrg)
+summary(dfbReg1)
+```
+```{r}
+plot(dfbReg1)
+```
+
+
+#6.Even more regression: Run a simple linear regression to determine the effect of bad weather on COUNT when none of the other variables is included in the model.
+
+```{r}
+dfbCOUNTreg <- lm(formula = COUNT ~ BADWEATHER, data = dfbOrg)
+summary(dfbCOUNTreg)
+```
+
+```{r}
+dfbBadweather <- lm(formula = COUNT ~ BADWEATHER*WEEKDAY, data = dfbOrg)
+summary(dfbBadweather)
+
+```
+#7.Predictive analytics: Follow the steps below to build two predictive models. Which model is a better choice for predictive analytics purposes? Why? Does your conclusion remain the same for explanatory analytics purposes? Please copy and paste the predictive and explanatory performance levels of both models into your response.
+#Set the seed to 333 (Always set the seed and split your data in the same chunk!).
+#Split your data into two: 80% for the training set, and 20% for the test set
+#Call the training set dfbTrain and the test set dfbTest
+#Build two different models, calculate, and compare performance.
+#The first model will include the variables in Q4 with any adjustments you may have made during the diagnostics tests in Q5 (call this one fitOrg). The second model will add WINDSPEED to this model -Call it fitNew.
+```{r}
+library(modelr)
+detach('package:modelr', unload=TRUE)
+
+set.seed(333)
+dfbTrain <- dfbOrg %>% sample_frac(0.8)
+dfbTest <- dplyr::setdiff(dfbOrg, dfbTrain)
+
+#Model1
+fitOrg <-lm(formula = COUNT ~ MONTH + WEEKDAY + BADWEATHER + ATEMP + HUMIDITY, data = dfbOrg)
+fitOrg
+summary(fitOrg)
+```
+
+
+```{r}
+resultsOrg <- dfbTest %>%
+  			mutate(predictedCOUNT = predict(fitOrg, dfbTest))
+resultsOrg
+```
+
+
+```{r}
+performance <- metric_set(rmse, mae)
+performance(data= resultsOrg, truth= COUNT, estimate= predictedCOUNT)
+```
+
+
+```{r}
+#Model2
+fitNew <- lm(formula = COUNT ~ MONTH + WEEKDAY + BADWEATHER + ATEMP + HUMIDITY + WINDSPEED , data = dfbOrg)
+fitNew
+summary(fitNew)
+```
+
+
+```{r}
+resultsNew <- dfbTest %>%
+  			mutate(predictedCOUNT = predict(fitNew, dfbTest))
+resultsNew
+```
+
+
+```{r}
+performance(data= resultsNew, truth= COUNT, estimate= predictedCOUNT)
+
+
+
+```
+#8.More predictive analytics: In this final question, experiment with the time component. In a way, you will almost treat the data as a time series. We will cover time series data later, so this is just a little experiment. Taking into account date, you can’t split your data randomly (well, evidently, you would not want to use future data to predict the past). Instead, you have to split your data by time. Start with dfbOrg and use the variables you used in fitOrg from Q7c. Split your data into training using the year “2011” data, and test using the “2012” data. Has the performance improved over the random split that assumed cross-sectional data (which you did in the previous questions)? Why do you think so? Split again by assigning 1.5 years of data starting from January 1st, 2011 to the training set and the remaining six months of data (the last six months) to the test set. Does this look any better? Discuss your findings.
+
+```{r}
+library(lubridate)
+
+
+dfbOrg2011 <- dfbOrg %>% filter(year(DATE) == 2011)
+dfbOrg2011
+
+dfbOrg2012 <- dfbOrg %>% filter(year(DATE) == 2012)
+dfbOrg2012
+```
+
+
+```{r}
+set.seed(333)
+dfbTrainTime <- dfbOrg2011 %>% sample_frac(0.8)
+dfbTestTime <- dplyr::setdiff(dfbOrg2012, dfbTrainTime)
+
+fitOrg2012 <-lm(formula = COUNT ~ MONTH + WEEKDAY + BADWEATHER + ATEMP + HUMIDITY, data = dfbOrg2011)
+summary(fitOrg2012)
+```
+
+
+```{r}
+resultsOrg2012 <- dfbTestTime %>%
+  			mutate(predictedCOUNT = predict(fitOrg2012, dfbTestTime))
+resultsOrg2012
+```
+
+
+```{r}
+performance(data= resultsOrg2012, truth= COUNT, estimate= predictedCOUNT)
+
+```
+
+
+
